@@ -10,30 +10,30 @@ import { exec } from "child_process";
 
 const directoryToMonitor = "./test/library1";
 
-export function isVideoFile(filename) {
+export function isVideoFile(filename: string) {
   const videoExtensions = [".mp4", ".mkv", ".avi", ".mov"]; // Add more if needed
   const ext = filename.slice(filename.lastIndexOf("."));
   return videoExtensions.includes(ext.toLowerCase());
 }
 
-export function encodeVideo(filename) {
-  console.log("one");
-  exec("echo 'hi tao'", () => {});
-  // const inputFilePath = `${directoryToMonitor}/${filename}`;
-  // const outputFilePath = `${directoryToMonitor}/encoded_${filename}`;
-  // const command = `HandBrakeCLI -i "${inputFilePath}" -o "${outputFilePath}"`;
+export function encodeVideo(filename: string) {
+  // console.log("one");
+  // exec(`echo 'hi tao ${filename}'`, () => {});
+  const inputFilePath = `${directoryToMonitor}/${filename}`;
+  const outputFilePath = `${directoryToMonitor}/encoded_${filename}`;
+  const command = `HandBrakeCLI -i "${inputFilePath}" -o "${outputFilePath}"`;
 
-  // exec(command, (error, stdout, stderr) => {
-  //     if (error) {
-  //         console.error(`Error encoding ${filename}: ${error.message}`);
-  //         return;
-  //     }
-  //     if (stderr) {
-  //         console.error(`Error encoding ${filename}: ${stderr}`);
-  //         return;
-  //     }
-  //     console.log(`Successfully encoded ${filename}`);
-  // });
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error encoding ${filename}: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`Error encoding ${filename}: ${stderr}`);
+      return;
+    }
+    console.log(`Successfully encoded ${filename}`);
+  });
 }
 
 function main() {
@@ -46,7 +46,7 @@ function main() {
     add_file(path);
   });
 
-  function add_file(path) {
+  function add_file(path: string) {
     console.log(`File Added: ${path}`);
     // Step 1: Is this a file we care about?
 

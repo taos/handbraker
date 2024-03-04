@@ -1,6 +1,4 @@
 import { isVideoFile, encodeVideo } from "../index";
-//const isVideoFile = require('../index')
-//const { describe, test, expect } = require('@jest/globals')
 
 describe("isVideoFile", () => {
   test("should return true for valid video file extensions", () => {
@@ -26,7 +24,11 @@ describe("encodeVideo", () => {
     // Call encodeVideo function
     encodeVideo("video.mp4");
 
+    const directoryToMonitor = "./test/library1";
     expect(execMock).toHaveBeenCalled();
+    // expect(execMock).toHaveBeenCalledWith(
+    //   `HandBrakeCLI -i "${directoryToMonitor}/video.mp4" -o "${directoryToMonitor}/encoded_video.mp4"`
+    // );
 
     // Verify exec function called with correct arguments
     // expect(execMock).toHaveBeenCalledWith('HandBrakeCLI -i "/path/to/your/directory/video.mp4" -o "/path/to/your/directory/encoded_video.mp4"', expect.any(Function));

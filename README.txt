@@ -7,6 +7,7 @@ Setup tasks:
     - Needs work :(
 2. Typescript
 - npm install --save-dev typescript
+    - configure: > tsc --init
 - node-ts?
 3. Jest (w/Typescript)
 - npm install --save-dev jest
