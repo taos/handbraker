@@ -1,4 +1,59 @@
-import { isVideoFile, encodeVideo } from "../index";
+import { isVideoFile, encodeVideo, rename, parsePath } from "../index";
+
+jest.mock("../index", () => {
+  const originalModule = jest.requireActual("../index");
+  return {
+    __esModule: true,
+    ...originalModule,
+    main: () => {},
+  };
+});
+
+test("parsePath test", () => {
+  const testItems = [
+    {
+      in: "test/library1/foo/bar.txt",
+      out: ["bar.txt", "test/output/foo"],
+    },
+    {
+      in: "test/library1/foo/bar/bang/baz.txt",
+      out: ["baz.txt", "test/output/foo/bar/bang"],
+    },
+    {
+      in: "test/library1/The.Mandalorian.S03E01.mkv",
+      out: ["The.Mandalorian.S03E01.mkv", "test/output"],
+    },
+  ];
+  for (const item of testItems) {
+    expect(parsePath(item.in)).toEqual(item.out);
+  }
+});
+
+describe("renamer tests", () => {
+  test("Simple renaming", () => {
+    const testItems = [
+      [
+        "The.Mandalorian.S03E01.720p.WEBRip.x264-DocPlexReady.mkv",
+        "The Mandalorian - S03E01.mkv",
+      ],
+      [
+        "The.Mandalorian.Episode.One.S01E02.720p.WEBRip.x264-DocPlexReady.mp4",
+        "The Mandalorian Episode One - S01E02.mp4",
+      ],
+      [
+        "Hedwig.And.The.Angry.Inch.2001.1080p.BluRay.x265.mp4",
+        "Hedwig And The Angry Inch (2001).mp4",
+      ],
+      [
+        "This.Is.Spinal.Tap.1984.1080p.BluRay.x265-LAMA.mov",
+        "This Is Spinal Tap (1984).mov",
+      ],
+    ];
+    for (const item of testItems) {
+      expect(rename(item[0])).toEqual(item[1]);
+    }
+  });
+});
 
 describe("isVideoFile", () => {
   test("should return true for valid video file extensions", () => {
@@ -22,15 +77,11 @@ describe("encodeVideo", () => {
     require("child_process").exec = execMock;
 
     // Call encodeVideo function
-    encodeVideo("video.mp4");
-
-    const directoryToMonitor = "./test/library1";
+    encodeVideo("in/video.mp4", "out/video.mp4");
     expect(execMock).toHaveBeenCalled();
+    // Not working :/
     // expect(execMock).toHaveBeenCalledWith(
-    //   `HandBrakeCLI -i "${directoryToMonitor}/video.mp4" -o "${directoryToMonitor}/encoded_video.mp4"`
+    //   `HandBrakeCLI -i "${directoryToMonitor}/video.mp4" -o "${directoryToMonitor}/encoded_video.mp4"`, expect.any(Function)
     // );
-
-    // Verify exec function called with correct arguments
-    // expect(execMock).toHaveBeenCalledWith('HandBrakeCLI -i "/path/to/your/directory/video.mp4" -o "/path/to/your/directory/encoded_video.mp4"', expect.any(Function));
   });
 });
