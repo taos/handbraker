@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "watch": "ts-node index.js watch",
+    "status": "ts-node index.js status"
   },
   "author": "tstarbow",
   "license": "ISC",
