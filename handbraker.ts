@@ -112,6 +112,13 @@ async function processFile(filepath: string) {
   checkToRun();
 }
 
+function addDir(dirPath: string) {
+  const files = fs.readdirSync(dirPath, { recursive: true });
+  for (const file of files) {
+    addFile(file.toString());
+  }
+}
+
 export function watch() {
   console.log("Setting up watcher on :", IN_DIR);
   const watcher = chokidar.watch(IN_DIR, {
@@ -126,6 +133,7 @@ export function watch() {
   });
   watcher.on("addDir", (path) => {
     console.log("addDir: ", path);
+    addDir(path);
   });
   watcher.on("change", (path) => {
     console.log("\n\nChanged: ", path);
