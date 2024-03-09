@@ -6,7 +6,7 @@ import { exec } from "child_process";
 const run = promisify(exec);
 import { Queue } from "./queue";
 
-const IN_DIR = "test/library1";
+const IN_DIR = "test/input";
 const OUT_DIR = "test/output";
 
 const JOB_QUEUE: Queue = new Queue("jobs");
@@ -112,13 +112,15 @@ export function watch() {
   });
 
   watcher.on("add", (path) => {
+    console.log("Added: ", path);
     addFile(path);
   });
   watcher.on("addDir", (path) => {
     console.log("addDir: ", path);
   });
   watcher.on("change", (path) => {
-    console.log("change: ", path);
+    console.log("Changed: ", path);
+    addFile(path);
   });
 }
 

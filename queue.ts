@@ -1,53 +1,57 @@
+/**
+ * Super simple persistant queue, backed by a json file writen to disk.
+ */
 import fs from "fs";
 import path from "path";
 
 export class Queue {
-  dir: string;
+  private filePath: string;
 
-  constructor(name: string) {
-    this.dir = `queues/${name}`;
-    fs.mkdirSync(this.dir, { recursive: true });
+  constructor(name: string = "queue", folder: string = "queues") {
+    this.filePath = path.join(folder, `${name}.json`);
+    fs.mkdirSync(folder, { recursive: true });
+    this.open();
   }
-
+  open(): void {
+    fs.writeFileSync(this.filePath, JSON.stringify([]), "utf8");
+  }
+  close(): void {
+    fs.rmSync(this.filePath);
+  }
   clean(): void {
-    fs.rmSync(this.dir, { force: true, recursive: true });
-    fs.mkdirSync(this.dir, { recursive: true });
+    this.save([]);
   }
-
-  // Get files, sorted by last modified time.
-  all(): string[] {
-    const files = fs.readdirSync(this.dir);
-    return files
-      .map((fileName) => ({
-        name: fileName,
-        time: fs.statSync(path.join(this.dir, fileName)).mtimeMs,
-      }))
-      .sort((a, b) => a.time - b.time)
-      .map((file) => file.name);
+  private load(): string[] {
+    const data = fs.readFileSync(this.filePath, "utf8");
+    return JSON.parse(data) || [];
   }
-
+  private save(queue: string[]): void {
+    fs.writeFileSync(this.filePath, JSON.stringify(queue), "utf8"); // write it back
+  }
   size(): number {
-    return fs.readdirSync(this.dir).length;
+    return this.load().length;
   }
-
-  push(item: string): void {
-    const itemPath = path.join(this.dir, item);
-    fs.writeFileSync(itemPath, "");
+  push(item: string) {
+    console.log(`push "${item}" into "${this.filePath}"`);
+    const queue = this.load();
+    queue.push(item); // Add some data
+    this.save(queue);
   }
-
-  remove(i: number): string {
-    const items = this.all();
-    if (i < 0 || i >= items.length) {
+  private remove(i: number): string {
+    const queue = this.load();
+    if (i < 0 || i >= queue.length) {
       return "";
     }
-    const item = items[i];
-    const itemPath = path.join(this.dir, item);
-    fs.rmSync(itemPath);
+    const item = queue[i];
+    queue.splice(i, 1);
+    this.save(queue);
     return item;
   }
-
   pop(): string {
     return this.remove(0);
+  }
+  peek(): string {
+    return this.load()[0];
   }
   shift(): string {
     return this.remove(this.size() - 1);
