@@ -6,39 +6,49 @@ import path from "path";
 
 export class Queue {
   private filePath: string;
+  // private queue: string[];
 
-  constructor(name: string = "queue", folder: string = "queues") {
+  constructor(
+    name: string = "queue",
+    reset: boolean = false,
+    folder: string = "queues"
+  ) {
     this.filePath = path.join(folder, `${name}.json`);
+    // this.queue = [];
     fs.mkdirSync(folder, { recursive: true });
-    this.open();
-  }
-  open(): void {
-    fs.writeFileSync(this.filePath, JSON.stringify([]), "utf8");
+    if (reset) {
+      this.reset();
+    }
   }
   close(): void {
     fs.rmSync(this.filePath);
   }
-  clean(): void {
+  reset(): void {
     this.save([]);
   }
-  private load(): string[] {
+  items(): string[] {
     const data = fs.readFileSync(this.filePath, "utf8");
     return JSON.parse(data) || [];
   }
   private save(queue: string[]): void {
-    fs.writeFileSync(this.filePath, JSON.stringify(queue), "utf8"); // write it back
+    console.log(`Save ${queue} to ${this.filePath}`);
+    fs.writeFileSync(this.filePath, JSON.stringify(queue, null, 2), "utf8"); // write it back
   }
   size(): number {
-    return this.load().length;
+    return this.items().length;
   }
   push(item: string) {
     console.log(`push "${item}" into "${this.filePath}"`);
-    const queue = this.load();
+    const queue = this.items();
     queue.push(item); // Add some data
     this.save(queue);
   }
+  delete(item: string): void {
+    const queue = this.items();
+    this.remove(queue.indexOf(item));
+  }
   private remove(i: number): string {
-    const queue = this.load();
+    const queue = this.items();
     if (i < 0 || i >= queue.length) {
       return "";
     }
@@ -51,7 +61,7 @@ export class Queue {
     return this.remove(0);
   }
   peek(): string {
-    return this.load()[0];
+    return this.items()[0];
   }
   shift(): string {
     return this.remove(this.size() - 1);
