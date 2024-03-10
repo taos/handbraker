@@ -1,6 +1,6 @@
-import chokidar from "chokidar";
-import path from "path";
-import fs from "fs";
+import * as chokidar from "chokidar";
+import * as path from "path";
+import * as fs from "fs";
 import { promisify } from "util";
 import { exec } from "child_process";
 const asyncExec = promisify(exec);
@@ -11,6 +11,7 @@ const OUT_DIR = "test/output";
 
 const JOB_QUEUE: Queue = new Queue("backlog");
 const RUNNING_QUEUE: Queue = new Queue("running");
+const DONE: Queue = new Queue("done");
 const MAX_JOBS = 1;
 
 export function isVideoFile(filename: string) {
@@ -105,6 +106,7 @@ async function processFile(filepath: string) {
     const outPath = path.join(outDir, renamed);
     await encodeVideo(filepath, outPath);
     RUNNING_QUEUE.delete(filepath);
+    DONE.push(filepath);
     console.log(`pop: in_progress: ${RUNNING_QUEUE.items()}`);
   } else {
     console.log("Not a video file: ", filepath);
@@ -142,6 +144,7 @@ export function watch() {
 
   // Clear the running queue
   RUNNING_QUEUE.reset();
+  DONE.reset();
 
   // Restart any jobs in backlog
   const jobs = JOB_QUEUE.items();
@@ -156,5 +159,7 @@ export function getQueueStats() {
     job_queue: JOB_QUEUE.items(),
     running: RUNNING_QUEUE.size(),
     running_queue: RUNNING_QUEUE.items(),
+    done: DONE.size(),
+    done_queue: DONE.items(),
   };
 }

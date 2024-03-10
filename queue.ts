@@ -1,8 +1,8 @@
 /**
  * Super simple persistant queue, backed by a json file writen to disk.
  */
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 
 export class Queue {
   private filePath: string;
@@ -27,6 +27,9 @@ export class Queue {
     this.save([]);
   }
   items(): string[] {
+    if (!fs.existsSync(this.filePath)) {
+      return [];
+    }
     const data = fs.readFileSync(this.filePath, "utf8");
     return JSON.parse(data) || [];
   }
