@@ -6,13 +6,15 @@ import { exec } from "child_process";
 const asyncExec = promisify(exec);
 import { Queue } from "./queue";
 
-const IN_DIR = "test/input";
-const OUT_DIR = "test/output";
+// const IN_DIR = "test/input";
+// const OUT_DIR = "test/output";
+// const MAX_JOBS = 1;
+
+export type Configs = Record<string, string>;
 
 const JOB_QUEUE: Queue = new Queue("backlog");
 const RUNNING_QUEUE: Queue = new Queue("running");
 const DONE: Queue = new Queue("done");
-const MAX_JOBS = 1;
 
 export function isVideoFile(filename: string) {
   const videoExtensions = [".mp4", ".mkv", ".avi", ".mov"]; // Add more if needed
@@ -71,33 +73,38 @@ export function parsePath(filepath: string, inDir: string, outDir: string) {
   return [filename, outPath]; // , outPath];
 }
 
-function addFile(filepath: string) {
+function addFile(filepath: string, configs: Configs) {
   JOB_QUEUE.push(filepath);
-  checkToRun();
+  checkToRun(configs);
 }
 
-function checkToRun() {
+function checkToRun(configs: Configs) {
+  const maxJobs = Number(configs.max_jobs);
   console.log(
-    `checkToRun: ${RUNNING_QUEUE.size()} < ${MAX_JOBS}: ${
-      RUNNING_QUEUE.size() < MAX_JOBS
+    `checkToRun: ${RUNNING_QUEUE.size()} < ${maxJobs}: ${
+      RUNNING_QUEUE.size() < maxJobs
     }`
   );
-  if (RUNNING_QUEUE.size() < MAX_JOBS) {
+  if (RUNNING_QUEUE.size() < maxJobs) {
     const fileToRun = JOB_QUEUE.shift();
     if (fileToRun) {
-      processFile(fileToRun);
+      processFile(fileToRun, configs);
     }
   }
 }
 
-async function processFile(filepath: string) {
+async function processFile(filepath: string, configs: Configs) {
   console.log(`File Added: ${filepath}`);
   // Step 1: Is this a file we care about?
   if (isVideoFile(filepath)) {
     RUNNING_QUEUE.push(filepath);
     console.log(`push: in_progress: ${RUNNING_QUEUE.items()}`);
     // Step 2: If so, replicate its directory structure in output directory
-    const [filename, outDir] = parsePath(filepath, IN_DIR, OUT_DIR);
+    const [filename, outDir] = parsePath(
+      filepath,
+      configs.input_folder,
+      configs.output_folder
+    );
     console.log("Creating directory: ", outDir);
     fs.mkdirSync(outDir, { recursive: true });
     // Step 3: copy it to working directory, with new name
@@ -111,19 +118,19 @@ async function processFile(filepath: string) {
   } else {
     console.log("Not a video file: ", filepath);
   }
-  checkToRun();
+  checkToRun(configs);
 }
 
-function addDir(dirPath: string) {
+function addDir(dirPath: string, configs: Configs) {
   const files = fs.readdirSync(dirPath, { recursive: true });
   for (const file of files) {
-    addFile(file.toString());
+    addFile(file.toString(), configs);
   }
 }
 
-export function watch() {
-  console.log("Setting up watcher on :", IN_DIR);
-  const watcher = chokidar.watch(IN_DIR, {
+export function watch(configs: Configs) {
+  console.log("Setting up watcher on :", configs.input_folder);
+  const watcher = chokidar.watch(configs.input_folder, {
     persistent: true, // Keep the service running
     awaitWriteFinish: true, // Wait until file has stopped growing for 2 seconds
     ignoreInitial: true, // Ignore files already in the directory.
@@ -131,15 +138,15 @@ export function watch() {
 
   watcher.on("add", (path) => {
     console.log("Added: ", path);
-    addFile(path);
+    addFile(path, configs);
   });
   watcher.on("addDir", (path) => {
     console.log("addDir: ", path);
-    addDir(path);
+    addDir(path, configs);
   });
   watcher.on("change", (path) => {
     console.log("\n\nChanged: ", path);
-    addFile(path);
+    addFile(path, configs);
   });
 
   // Clear the running queue
@@ -149,7 +156,7 @@ export function watch() {
   // Restart any jobs in backlog
   const jobs = JOB_QUEUE.items();
   for (const job of jobs) {
-    addFile(job);
+    addFile(job, configs);
   }
 }
 

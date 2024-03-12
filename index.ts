@@ -1,4 +1,4 @@
-import { watch, getQueueStats } from "./handbraker";
+import { watch, getQueueStats, Configs } from "./handbraker";
 
 import * as toml from "toml";
 import * as fs from "fs";
@@ -36,12 +36,12 @@ program
   .action((opts) => {
     console.log("Watch command called");
     console.log("Looking for config file: ", opts.config_file);
-    let fileConfigs: Record<string, any> = {};
+    let fileConfigs: Configs = {};
     if (opts.config_file) {
       fileConfigs = toml.parse(fs.readFileSync(opts.config_file, "utf-8"));
       console.log("fileConfigs:", fileConfigs);
     }
-    const configs: Record<string, string> = {};
+    const configs: Configs = {};
     configs["input_folder"] =
       opts.input_folder ?? fileConfigs.input_folder ?? "watch";
     configs["output_folder"] =
@@ -50,7 +50,7 @@ program
     configs["handbrake"] =
       opts.handbrake ?? fileConfigs.handbrake ?? "Fast 480p30";
     console.log("configs:", configs);
-    //    watch(configs);
+    watch(configs);
   });
 
 program

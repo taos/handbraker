@@ -7,7 +7,7 @@
     "test": "jest",
     "watch": "ts-node index.ts watch",
     "status": "ts-node index.ts status",
-    "build": "npx tsc index.ts --outDir dist; pkg dist/index.js --targets=node16-macos-x64  -o handbrake"
+    "build": "npx tsc index.ts --outDir dist; pkg dist/index.js --targets=node16-macos-x64  -o handbraker"
   },
   "author": "tstarbow",
   "license": "ISC",
