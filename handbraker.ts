@@ -7,7 +7,7 @@ const asyncExec = promisify(exec);
 import { Queue } from "./queue";
 
 import Debug from "debug";
-const log = Debug("handbraker");
+const log = Debug("handbraker:main");
 
 // const IN_DIR = "test/input";
 // const OUT_DIR = "test/output";
@@ -24,6 +24,7 @@ export interface Configs {
 const JOB_QUEUE: Queue = new Queue("backlog");
 const RUNNING_QUEUE: Queue = new Queue("running");
 const DONE: Queue = new Queue("done");
+const FAILED: Queue = new Queue("failed");
 
 export function isVideoFile(filename: string) {
   const videoExtensions = [".mp4", ".mkv", ".avi", ".mov"]; // Add more if needed
@@ -61,18 +62,19 @@ export async function encodeVideo(
   inputFilePath: string,
   outputFilePath: string,
   handbrakeFormat: string
-): Promise<string> {
+): Promise<boolean> {
   const command = `HandBrakeCLI -i "${inputFilePath}" -o "${outputFilePath}" -Z "${handbrakeFormat}"`;
-  log("Running command: ", command);
+  console.log("Running command: ", command);
   try {
     const { stdout, stderr } = await asyncExec(command);
     console.log(`Successfully encoded ${inputFilePath}: ${stdout}`);
-    console.log("stdout:", stdout);
-    console.error("stderr:", stderr);
+    console.log("Handbrake stdout:", stdout);
+    console.error("Handbrake stderr:", stderr);
   } catch (e) {
-    console.error("error: ", e);
+    console.error("Handbrake Error: \n", e);
+    return false;
   }
-  return "Run completed: " + command;
+  return true;
 }
 
 export function parsePath(filepath: string, inDir: string, outDir: string) {
@@ -86,6 +88,7 @@ export function parsePath(filepath: string, inDir: string, outDir: string) {
 }
 
 function addFile(filepath: string, configs: Configs) {
+  console.log("Adding file to the job queue for processing: ", filepath);
   JOB_QUEUE.push(filepath);
   checkToRun(configs);
 }
@@ -106,12 +109,10 @@ function checkToRun(configs: Configs) {
 }
 
 async function processFile(filepath: string, configs: Configs) {
-  log(`File Added: ${filepath}`);
+  console.log(`Processing File: ${filepath}`);
   // Step 1: Is this a file we care about?
   if (isVideoFile(filepath)) {
     RUNNING_QUEUE.push(filepath);
-    console.log(`Starting: ${filepath}`);
-    console.log(getQueueStats());
     // Step 2: If so, replicate its directory structure in output directory
     const [filename, outDir] = parsePath(
       filepath,
@@ -124,10 +125,15 @@ async function processFile(filepath: string, configs: Configs) {
     //    HandBrakeCLI -i source -o destination
     const renamed = renameFile(filename);
     const outPath = path.join(outDir, renamed);
-    await encodeVideo(filepath, outPath, configs.params);
+    const success = await encodeVideo(filepath, outPath, configs.params);
     RUNNING_QUEUE.delete(filepath);
-    DONE.push(filepath);
-    console.log(`Done with: ${filepath}`);
+    if (success) {
+      console.log(`Done with: ${filepath}`);
+      DONE.push(filepath);
+    } else {
+      console.log(`${filepath} failed`);
+      FAILED.push(filepath);
+    }
     console.log(getQueueStats());
   } else {
     log("Not a video file: ", filepath);
@@ -136,9 +142,14 @@ async function processFile(filepath: string, configs: Configs) {
 }
 
 function addDir(dirPath: string, configs: Configs) {
-  const files = fs.readdirSync(dirPath, { recursive: true });
+  const files: string[] = fs.readdirSync(dirPath, {
+    recursive: true,
+    encoding: "utf8",
+  });
   for (const file of files) {
-    addFile(file.toString(), configs);
+    const filepath = path.join(dirPath, file);
+    log("Adding File from directory:", filepath);
+    addFile(filepath, configs);
   }
 }
 
@@ -163,9 +174,10 @@ export function watch(configs: Configs) {
     addFile(path, configs);
   });
 
-  // Clear the running queue
+  // Clear the queues
   RUNNING_QUEUE.reset();
   DONE.reset();
+  FAILED.reset();
 
   // Restart any jobs in backlog
   const jobs = JOB_QUEUE.items();
@@ -182,5 +194,7 @@ export function getQueueStats() {
     running_queue: RUNNING_QUEUE.items(),
     done: DONE.size(),
     done_queue: DONE.items(),
+    failed: FAILED.size(),
+    failed_queue: FAILED.items(),
   };
 }
