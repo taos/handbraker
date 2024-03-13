@@ -35,20 +35,18 @@ program
   .option("-p, --handbrake [params]", "Parameters to pass to handbrake-cli.")
   .action((opts) => {
     console.log("Watch command called");
-    console.log("Looking for config file: ", opts.config_file);
-    let fileConfigs: Configs = {};
+    let fileConfigs: any = {};
     if (opts.config_file) {
       fileConfigs = toml.parse(fs.readFileSync(opts.config_file, "utf-8"));
-      console.log("fileConfigs:", fileConfigs);
+      // console.log("Looking for config file: ", opts.config_file);
+      console.log("From fileConfigs:", fileConfigs);
     }
-    const configs: Configs = {};
-    configs["input_folder"] =
-      opts.input_folder ?? fileConfigs.input_folder ?? "watch";
-    configs["output_folder"] =
-      opts.output_folder ?? fileConfigs.output_folder ?? "output";
-    configs["max_jobs"] = opts.max_jobs ?? fileConfigs.max_jobs ?? "1"; // TODO -- convert to int.
-    configs["handbrake"] =
-      opts.handbrake ?? fileConfigs.handbrake ?? "Fast 480p30";
+    const configs: Configs = {
+      inputFolder: opts.input_folder ?? fileConfigs.input_folder ?? "watch",
+      outputFolder: opts.output_folder ?? fileConfigs.output_folder ?? "output",
+      maxJobs: Number(opts.max_jobs ?? fileConfigs.max_jobs ?? "1"),
+      params: opts.handbrake ?? fileConfigs.handbrake ?? "Fast 480p30",
+    };
     console.log("configs:", configs);
     watch(configs);
   });
@@ -61,5 +59,3 @@ program
   });
 
 program.parse(process.argv);
-// const options = program.opts();
-// console.log(options);

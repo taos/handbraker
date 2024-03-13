@@ -22,11 +22,10 @@ describe("Queue tests", () => {
   });
 
   test("Multi queue tests", () => {
-    const q = new Queue("backlog");
-    q.reset();
+    const q = new Queue("backlog", true);
     expect(q.size()).toEqual(0);
     q.push("foo/bar");
-    const q2 = new Queue("running");
+    const q2 = new Queue("running", true);
     q2.push("foo/bar/baz.txt");
     expect(q.pop()).toEqual("foo/bar");
     expect(q2.peek()).toEqual("foo/bar/baz.txt");

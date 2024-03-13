@@ -3,18 +3,23 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import Debug from "debug";
+const log = Debug("handbraker:queue");
 
 export class Queue {
   private filePath: string;
-  // private queue: string[];
 
+  /**
+   * @param name -- name of the queue
+   * @param reset -- clear the queue if it already contains data.
+   * @param folder -- where to store the queue
+   */
   constructor(
     name: string = "queue",
     reset: boolean = false,
     folder: string = "queues"
   ) {
     this.filePath = path.join(folder, `${name}.json`);
-    // this.queue = [];
     fs.mkdirSync(folder, { recursive: true });
     if (reset) {
       this.reset();
@@ -34,14 +39,14 @@ export class Queue {
     return JSON.parse(data) || [];
   }
   private save(queue: string[]): void {
-    console.log(`Save ${queue} to ${this.filePath}`);
+    log(`Save ${queue} to ${this.filePath}`);
     fs.writeFileSync(this.filePath, JSON.stringify(queue, null, 2), "utf8"); // write it back
   }
   size(): number {
     return this.items().length;
   }
   push(item: string) {
-    console.log(`push "${item}" into "${this.filePath}"`);
+    log(`push "${item}" into "${this.filePath}"`);
     const queue = this.items();
     queue.push(item); // Add some data
     this.save(queue);

@@ -6,11 +6,20 @@ import { exec } from "child_process";
 const asyncExec = promisify(exec);
 import { Queue } from "./queue";
 
+import Debug from "debug";
+const log = Debug("handbraker");
+
 // const IN_DIR = "test/input";
 // const OUT_DIR = "test/output";
 // const MAX_JOBS = 1;
 
-export type Configs = Record<string, string>;
+// export type Options = Record<string, string>;
+export interface Configs {
+  inputFolder: string;
+  outputFolder: string;
+  maxJobs: number;
+  params: string;
+}
 
 const JOB_QUEUE: Queue = new Queue("backlog");
 const RUNNING_QUEUE: Queue = new Queue("running");
@@ -23,42 +32,45 @@ export function isVideoFile(filename: string) {
 }
 
 export function renameFile(filename: string): string {
-  let renamed = filename;
+  // TV episode:
   // ex: "The.Mandalorian.S03E01.720p.WEBRip.x264-DocPlexReady.mkv" => "The Mandalorian - S03E01.mkv"
   let regex = /^(.+).+(S\d+E\d+).*\.(.*)$/; // Find tv episodes.
   let match = regex.exec(filename);
-  // console.log("match1:", match);
   if (match) {
     const name = match[1].split(".").join(" ");
-    return `${name} - ${match?.[2]}.${match?.[3]}`;
+    const renamed = `${name} - ${match?.[2]}.${match?.[3]}`;
+    log("Matched an episode. New name:", renamed);
+    return renamed;
   }
+  // Movie:
   // ex: "Hedwig.And.The.Angry.Inch.2001.1080p.BluRay.x265.mp4" => "Hedwig And The Angry Inch (2001).mp4"
   regex = /^(.+).+(19\d\d|20\d\d).*\.(.*)$/; // Find movies with dates.
   match = regex.exec(filename);
-  console.log("match2:", match);
   if (match) {
     const name = match[1].split(".").join(" ");
     const date = match?.[2] ? ` (${match[2]})` : "";
-    renamed = `${name}${date}.${match?.[3]}`;
+    const renamed = `${name}${date}.${match?.[3]}`;
+    log("Matched a movie. New name:", renamed);
+    return renamed;
   }
-  console.log(renamed);
-  return renamed;
+  log("No match on:", filename);
+  return filename;
 }
 
 export async function encodeVideo(
   inputFilePath: string,
-  outputFilePath: string
+  outputFilePath: string,
+  handbrakeFormat: string
 ): Promise<string> {
-  const format = "Fast 480p30";
-  const command = `HandBrakeCLI -i "${inputFilePath}" -o "${outputFilePath}" -Z "${format}"`;
-  console.log("Running command: ", command);
+  const command = `HandBrakeCLI -i "${inputFilePath}" -o "${outputFilePath}" -Z "${handbrakeFormat}"`;
+  log("Running command: ", command);
   try {
     const { stdout, stderr } = await asyncExec(command);
     console.log(`Successfully encoded ${inputFilePath}: ${stdout}`);
     console.log("stdout:", stdout);
-    console.log("stderr:", stderr);
+    console.error("stderr:", stderr);
   } catch (e) {
-    console.log("error: ", e);
+    console.error("error: ", e);
   }
   return "Run completed: " + command;
 }
@@ -79,8 +91,8 @@ function addFile(filepath: string, configs: Configs) {
 }
 
 function checkToRun(configs: Configs) {
-  const maxJobs = Number(configs.max_jobs);
-  console.log(
+  const maxJobs = configs.maxJobs;
+  log(
     `checkToRun: ${RUNNING_QUEUE.size()} < ${maxJobs}: ${
       RUNNING_QUEUE.size() < maxJobs
     }`
@@ -94,29 +106,31 @@ function checkToRun(configs: Configs) {
 }
 
 async function processFile(filepath: string, configs: Configs) {
-  console.log(`File Added: ${filepath}`);
+  log(`File Added: ${filepath}`);
   // Step 1: Is this a file we care about?
   if (isVideoFile(filepath)) {
     RUNNING_QUEUE.push(filepath);
-    console.log(`push: in_progress: ${RUNNING_QUEUE.items()}`);
+    console.log(`Starting: ${filepath}`);
+    console.log(getQueueStats());
     // Step 2: If so, replicate its directory structure in output directory
     const [filename, outDir] = parsePath(
       filepath,
-      configs.input_folder,
-      configs.output_folder
+      configs.inputFolder,
+      configs.outputFolder
     );
-    console.log("Creating directory: ", outDir);
+    log("Creating directory: ", outDir);
     fs.mkdirSync(outDir, { recursive: true });
     // Step 3: copy it to working directory, with new name
     //    HandBrakeCLI -i source -o destination
     const renamed = renameFile(filename);
     const outPath = path.join(outDir, renamed);
-    await encodeVideo(filepath, outPath);
+    await encodeVideo(filepath, outPath, configs.params);
     RUNNING_QUEUE.delete(filepath);
     DONE.push(filepath);
-    console.log(`pop: in_progress: ${RUNNING_QUEUE.items()}`);
+    console.log(`Done with: ${filepath}`);
+    console.log(getQueueStats());
   } else {
-    console.log("Not a video file: ", filepath);
+    log("Not a video file: ", filepath);
   }
   checkToRun(configs);
 }
@@ -129,23 +143,23 @@ function addDir(dirPath: string, configs: Configs) {
 }
 
 export function watch(configs: Configs) {
-  console.log("Setting up watcher on :", configs.input_folder);
-  const watcher = chokidar.watch(configs.input_folder, {
+  console.log("Setting up watcher on :", configs.inputFolder);
+  const watcher = chokidar.watch(configs.inputFolder, {
     persistent: true, // Keep the service running
     awaitWriteFinish: true, // Wait until file has stopped growing for 2 seconds
     ignoreInitial: true, // Ignore files already in the directory.
   });
 
   watcher.on("add", (path) => {
-    console.log("Added: ", path);
+    log("Added: ", path);
     addFile(path, configs);
   });
   watcher.on("addDir", (path) => {
-    console.log("addDir: ", path);
+    log("addDir: ", path);
     addDir(path, configs);
   });
   watcher.on("change", (path) => {
-    console.log("\n\nChanged: ", path);
+    log("\n\nChanged: ", path);
     addFile(path, configs);
   });
 
